@@ -21,13 +21,13 @@ class ArtCommand extends TerminusCommand implements ContainerAwareInterface
     protected $available_art = ['druplicon', 'fist', 'hello', 'rocket', 'unicorn', 'wordpress',];
 
     /**
-     * Displays Pantheon ASCII artwork.
+     * Displays Pantheon ASCII artwork. Currently available; ['druplicon', 'fist', 'hello', 'rocket', 'unicorn', 'wordpress']
      *
      * @command art
      *
      * @param string $name Artwork name
      *
-     * @usage Displays the list of available artwork.
+     * @usage Displays random artwork from the available list.
      * @usage <artwork> Displays the <artwork> artwork.
      */
     public function art($name = 'random')

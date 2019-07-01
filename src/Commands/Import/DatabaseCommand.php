@@ -3,12 +3,14 @@
 namespace Pantheon\Terminus\Commands\Import;
 
 use Pantheon\Terminus\Commands\TerminusCommand;
+use Pantheon\Terminus\Commands\WorkflowProcessingTrait;
 use Pantheon\Terminus\Site\SiteAwareInterface;
 use Pantheon\Terminus\Site\SiteAwareTrait;
 
 class DatabaseCommand extends TerminusCommand implements SiteAwareInterface
 {
     use SiteAwareTrait;
+    use WorkflowProcessingTrait;
 
     /**
      * Imports a database archive to the environment.
@@ -32,10 +34,7 @@ class DatabaseCommand extends TerminusCommand implements SiteAwareInterface
             return;
         }
 
-        $workflow = $env->importDatabase($url);
-        while (!$workflow->checkProgress()) {
-            // @TODO: Add Symfony progress bar to indicate that something is happening.
-        }
+        $this->processWorkflow($env->importDatabase($url));
         $this->log()->notice(
             'Imported database to {site}.{env}.',
             ['site' => $site->get('name'), 'env' => $env->id,]

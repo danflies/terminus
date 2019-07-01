@@ -5,6 +5,7 @@ namespace Pantheon\Terminus\UnitTests\Commands\Upstream\Updates;
 use Pantheon\Terminus\Commands\Upstream\Updates\ApplyCommand;
 use Pantheon\Terminus\Exceptions\TerminusException;
 use Pantheon\Terminus\Models\Workflow;
+use Pantheon\Terminus\UnitTests\Commands\WorkflowProgressTrait;
 
 /**
  * Class ApplyCommandTest
@@ -13,6 +14,7 @@ use Pantheon\Terminus\Models\Workflow;
  */
 class ApplyCommandTest extends UpdatesCommandTest
 {
+    use WorkflowProgressTrait;
 
     /**
      * @inheritdoc
@@ -22,8 +24,10 @@ class ApplyCommandTest extends UpdatesCommandTest
         parent::setUp();
 
         $this->command = new ApplyCommand($this->getConfig());
+        $this->command->setContainer($this->getContainer());
         $this->command->setSites($this->sites);
         $this->command->setLogger($this->logger);
+        $this->expectWorkflowProcessing();
     }
 
     /**
@@ -103,10 +107,6 @@ class ApplyCommandTest extends UpdatesCommandTest
         $workflow = $this->getMockBuilder(Workflow::class)
             ->disableOriginalConstructor()
             ->getMock();
-
-        $workflow->expects($this->any())
-            ->method('checkProgress')
-            ->willReturn(true);
 
         $workflow->expects($this->any())
             ->method('getMessage')

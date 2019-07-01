@@ -4,6 +4,7 @@ namespace Pantheon\Terminus\Commands\Org;
 
 use Consolidation\OutputFormatters\StructuredData\RowsOfFields;
 use Pantheon\Terminus\Commands\TerminusCommand;
+use Pantheon\Terminus\Commands\StructuredListTrait;
 
 /**
  * Class ListCommand
@@ -11,6 +12,8 @@ use Pantheon\Terminus\Commands\TerminusCommand;
  */
 class ListCommand extends TerminusCommand
 {
+    use StructuredListTrait;
+
     /**
      * Displays the list of organizations.
      *
@@ -29,17 +32,9 @@ class ListCommand extends TerminusCommand
      */
     public function listOrgs()
     {
-        $orgs = array_map(
-            function ($org) {
-                return $org->serialize();
-            },
-            $this->session()->getUser()->getOrganizations()
+        return $this->getRowsOfFields(
+            $this->session()->getUser()->getOrganizationMemberships(),
+            ['message' => 'You are not a member of any organizations.',]
         );
-
-        if (empty($orgs)) {
-            $this->log()->warning('You are not a member of any organizations.');
-        }
-
-        return new RowsOfFields($orgs);
     }
 }

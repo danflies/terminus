@@ -3,6 +3,7 @@
 namespace Pantheon\Terminus\UnitTests\Commands\Env;
 
 use Pantheon\Terminus\Commands\Env\WipeCommand;
+use Pantheon\Terminus\UnitTests\Commands\WorkflowProgressTrait;
 
 /**
  * Class WipeCommandTest
@@ -11,6 +12,8 @@ use Pantheon\Terminus\Commands\Env\WipeCommand;
  */
 class WipeCommandTest extends EnvCommandTest
 {
+    use WorkflowProgressTrait;
+
     /**
      * @inheritdoc
      */
@@ -19,9 +22,11 @@ class WipeCommandTest extends EnvCommandTest
         parent::setUp();
 
         $this->command = new WipeCommand();
+        $this->command->setContainer($this->getContainer());
         $this->command->setSites($this->sites);
         $this->command->setLogger($this->logger);
         $this->command->setInput($this->input);
+        $this->expectWorkflowProcessing();
     }
 
     /**
@@ -35,10 +40,6 @@ class WipeCommandTest extends EnvCommandTest
 
         $this->expectConfirmation();
 
-        $this->workflow->expects($this->once())
-          ->method('checkProgress')
-          ->with()
-          ->willReturn(true);
         $this->workflow->expects($this->once())
           ->method('getMessage')
           ->with()
@@ -60,33 +61,6 @@ class WipeCommandTest extends EnvCommandTest
               $this->equalTo('notice'),
               $this->equalTo($message)
           );
-
-        $out = $this->command->wipe("$site_name.{$this->environment->id}");
-        $this->assertNull($out);
-    }
-
-    /**
-     * Tests the env:wipe command when the confirmation is declined
-     *
-     * @todo Remove this when removing TerminusCommand::confirm()
-     */
-    public function testWipeConfirmationDecline()
-    {
-        $site_name = 'site_name';
-        $this->environment->id = 'env_id';
-
-        $this->expectConfirmation(false);
-        $this->workflow->expects($this->never())
-          ->method('checkProgress');
-        $this->workflow->expects($this->never())
-          ->method('getMessage');
-        $this->site->expects($this->once())
-            ->method('isFrozen')
-            ->willReturn(false);
-        $this->environment->expects($this->never())
-          ->method('wipe');
-        $this->logger->expects($this->never())
-          ->method('log');
 
         $out = $this->command->wipe("$site_name.{$this->environment->id}");
         $this->assertNull($out);

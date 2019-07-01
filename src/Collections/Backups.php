@@ -14,7 +14,7 @@ class Backups extends EnvironmentOwnedCollection
     const DAILY_BACKUP_TTL = 691200;
     const WEEKLY_BACKUP_TTL = 2764800;
 
-    public static $pretty_name = 'backups';
+    const PRETTY_NAME = 'backups';
     /**
      * @var string
      */
@@ -82,6 +82,31 @@ class Backups extends EnvironmentOwnedCollection
             }
         }
         return $this;
+    }
+
+    /**
+     * Filters out backups which are not of the given type
+     *
+     * @param string [code|files|database] The element desired of the backup collection
+     * @return Backups
+     */
+    public function filterForElement($element)
+    {
+        return $this->filter(function ($backup) use ($element) {
+            return $backup->get('type') === $element;
+        });
+    }
+
+    /**
+     * Filters out unfinished backups
+     *
+     * @return Backups
+     */
+    public function filterForFinished()
+    {
+        return $this->filter(function ($backup) {
+            return $backup->backupIsFinished();
+        });
     }
 
     /**

@@ -1,10 +1,11 @@
 <?php
 
-namespace Pantheon\Terminus\UnitTests\Commands\Site;
+namespace Pantheon\Terminus\UnitTests\Commands\Site\Upstream;
 
 use Pantheon\Terminus\Collections\SiteAuthorizations;
 use Pantheon\Terminus\Collections\Upstreams;
 use Pantheon\Terminus\Commands\Site\Upstream\SetCommand;
+use Pantheon\Terminus\Config\TerminusConfig;
 use Pantheon\Terminus\Exceptions\TerminusException;
 use Pantheon\Terminus\Models\SiteAuthorization;
 use Pantheon\Terminus\Models\SiteUpstream;
@@ -13,6 +14,7 @@ use Pantheon\Terminus\Models\User;
 use Pantheon\Terminus\Models\Workflow;
 use Pantheon\Terminus\Session\Session;
 use Pantheon\Terminus\UnitTests\Commands\CommandTestCase;
+use Pantheon\Terminus\UnitTests\Commands\WorkflowProgressTrait;
 
 /**
  * Class SetCommandTest
@@ -21,10 +23,16 @@ use Pantheon\Terminus\UnitTests\Commands\CommandTestCase;
  */
 class SetCommandTest extends CommandTestCase
 {
+    use WorkflowProgressTrait;
+
     /**
      * @var SiteAuthorization
      */
     protected $authorizations;
+    /**
+     * @var TerminusConfig
+     */
+    protected $config;
     /**
      * @var Session
      */
@@ -59,8 +67,6 @@ class SetCommandTest extends CommandTestCase
      */
     protected function setup()
     {
-        parent::setUp();
-
         $this->authorizations = $this->getMockBuilder(SiteAuthorizations::class)
             ->disableOriginalConstructor()
             ->getMock();
@@ -82,16 +88,21 @@ class SetCommandTest extends CommandTestCase
         $this->site_upstream->id = 'Site upstream ID';
         $this->upstream_data = ['framework' => 'Framework', 'id' => 'upstream_id', 'label' => 'Upstream Name',];
 
+        parent::setUp();
+
         $this->site->expects($this->once())
             ->method('getAuthorizations')
             ->with()
             ->willReturn($this->authorizations);
 
         $this->command = new SetCommand($this->getConfig());
+        $this->command->setContainer($this->getContainer());
         $this->command->setSites($this->sites);
         $this->command->setLogger($this->logger);
         $this->command->setInput($this->input);
         $this->command->setSession($this->session);
+        $this->command->setOutput($this->output);
+        $this->expectWorkflowProcessing();
 
         $this->workflow = $this->getMockBuilder(Workflow::class)
             ->disableOriginalConstructor()
@@ -110,7 +121,7 @@ class SetCommandTest extends CommandTestCase
 
         $this->authorizations->expects($this->once())
             ->method('can')
-            ->with('update_site_setting')
+            ->with('switch_upstream')
             ->willReturn(true);
         $this->site->expects($this->once())
             ->method('getUpstream')
@@ -133,46 +144,12 @@ class SetCommandTest extends CommandTestCase
             ->with($upstream_id)
             ->willReturn($this->workflow);
 
-        $this->workflow->expects($this->once())
-            ->method('checkProgress')
-            ->with()
-            ->willReturn(true);
-
         $this->logger->expects($this->at(1))
           ->method('log')->with(
               $this->equalTo('notice'),
               $this->equalTo('Set upstream for {site} to {upstream}'),
               $this->equalTo(['site' => $site_name, 'upstream' => $this->upstream_data['label']])
           );
-
-        $out = $this->command->set($site_name, $upstream_id);
-        $this->assertNull($out);
-    }
-
-  /**
-   * Exercises the site:upstream:set command when declining the confirmation
-   *
-   * @todo Remove this when removing TerminusCommand::confirm()
-   */
-    public function testSetConfirmationDecline()
-    {
-        $site_name = 'my-site';
-        $upstream_id = $this->upstream_data['id'];
-
-        $this->expectGetUpstream($upstream_id);
-
-        $this->authorizations->expects($this->once())
-            ->method('can')
-            ->with('update_site_setting')
-            ->willReturn(true);
-        $this->site->expects($this->never())
-            ->method('getUpstream');
-        $this->logger->expects($this->never())
-          ->method('log');
-
-        $this->expectConfirmation(false);
-        $this->site->expects($this->never())
-        ->method('setUpstream');
 
         $out = $this->command->set($site_name, $upstream_id);
         $this->assertNull($out);
@@ -191,7 +168,7 @@ class SetCommandTest extends CommandTestCase
 
         $this->authorizations->expects($this->once())
             ->method('can')
-            ->with('update_site_setting')
+            ->with('switch_upstream')
             ->willReturn(true);
         $this->site->expects($this->once())
             ->method('getUpstream')
@@ -225,7 +202,7 @@ class SetCommandTest extends CommandTestCase
 
         $this->authorizations->expects($this->once())
             ->method('can')
-            ->with('update_site_setting')
+            ->with('switch_upstream')
             ->willReturn(false);
         $this->site->expects($this->never())
             ->method('getUpstream');
@@ -253,7 +230,7 @@ class SetCommandTest extends CommandTestCase
 
         $this->authorizations->expects($this->once())
             ->method('can')
-            ->with('update_site_setting')
+            ->with('switch_upstream')
             ->willReturn(true);
         $this->site->expects($this->once())
             ->method('getUpstream')
@@ -269,11 +246,6 @@ class SetCommandTest extends CommandTestCase
             ->method('setUpstream')
             ->with($upstream_id)
             ->willReturn($this->workflow);
-
-        $this->workflow->expects($this->once())
-            ->method('checkProgress')
-            ->with()
-            ->willReturn(true);
 
         $this->logger->expects($this->once())
             ->method('log')->with(
@@ -299,7 +271,7 @@ class SetCommandTest extends CommandTestCase
 
         $this->authorizations->expects($this->once())
             ->method('can')
-            ->with('update_site_setting')
+            ->with('switch_upstream')
             ->willReturn(true);
         $this->upstreams->expects($this->once())
             ->method('get')

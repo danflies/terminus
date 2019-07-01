@@ -4,13 +4,12 @@ namespace Pantheon\Terminus\Models;
 
 use League\Container\ContainerAwareInterface;
 use League\Container\ContainerAwareTrait;
-use Pantheon\Terminus\Collections\SiteAuthorizations;
 use Pantheon\Terminus\Friends\OrganizationsInterface;
 use Pantheon\Terminus\Friends\OrganizationsTrait;
-use Robo\Common\ConfigAwareTrait;
-use Robo\Contract\ConfigAwareInterface;
 use Pantheon\Terminus\Collections\Branches;
 use Pantheon\Terminus\Collections\Environments;
+use Pantheon\Terminus\Collections\Plans;
+use Pantheon\Terminus\Collections\SiteAuthorizations;
 use Pantheon\Terminus\Collections\SiteMetrics;
 use Pantheon\Terminus\Collections\SiteOrganizationMemberships;
 use Pantheon\Terminus\Collections\SiteUserMemberships;
@@ -21,13 +20,17 @@ use Pantheon\Terminus\Exceptions\TerminusException;
  * Class Site
  * @package Pantheon\Terminus\Models
  */
-class Site extends TerminusModel implements ConfigAwareInterface, ContainerAwareInterface, OrganizationsInterface
+class Site extends TerminusModel implements ContainerAwareInterface, OrganizationsInterface
 {
-    use ConfigAwareTrait;
     use ContainerAwareTrait;
     use OrganizationsTrait;
 
-    public static $pretty_name = 'site';
+    const PRETTY_NAME = 'site';
+
+    /**
+     * @var array
+     */
+    public static $date_attributes = ['created', 'last_frozen_at',];
     /**
      * @var string
      */
@@ -48,6 +51,14 @@ class Site extends TerminusModel implements ConfigAwareInterface, ContainerAware
      * @var SiteOrganizationMemberships
      */
     protected $org_memberships;
+    /**
+     * @var Plan
+     */
+    protected $plan;
+    /**
+     * @var Plans
+     */
+    protected $plans;
     /**
      * @var Redis
      */
@@ -123,9 +134,7 @@ class Site extends TerminusModel implements ConfigAwareInterface, ContainerAware
      */
     public function delete()
     {
-        $this->request()->request("sites/{$this->id}", ['method' => 'delete',]);
-        //TODO: Change this function to use a workflow. The workflow returned always gets 404 on status check.
-        //return $this->workflows->create('delete_site');
+        return $this->getWorkflows()->create('delete_site');
     }
 
     /**
@@ -233,13 +242,25 @@ class Site extends TerminusModel implements ConfigAwareInterface, ContainerAware
     }
 
     /**
-     * Returns the PHP version of this site.
-     *
-     * @return null|string
+     * @return Plan
      */
-    public function getPHPVersion()
+    public function getPlan()
     {
-        return !is_null($php_ver = $this->get('php_version')) ? substr($php_ver, 0, 1) . '.' . substr($php_ver, 1) : null;
+        if (empty($this->plan)) {
+            $this->plan = $this->getContainer()->get(Plan::class, [null, ['site' => $this,],]);
+        }
+        return $this->plan;
+    }
+
+    /**
+     * @return Plans
+     */
+    public function getPlans()
+    {
+        if (empty($this->plans)) {
+            $this->plans = $this->getContainer()->get(Plans::class, [['site' => $this,],]);
+        }
+        return $this->plans;
     }
 
     /**
@@ -259,6 +280,17 @@ class Site extends TerminusModel implements ConfigAwareInterface, ContainerAware
     public function getReferences()
     {
         return [$this->id, $this->getName(), $this->get('label'),];
+    }
+
+    /**
+     * @return SiteMetrics
+     */
+    public function getSiteMetrics()
+    {
+        if (empty($this->site_metrics)) {
+            $this->site_metrics = $this->getContainer()->get(SiteMetrics::class, [['site' => $this,],]);
+        }
+        return $this->site_metrics;
     }
 
     /**
@@ -310,17 +342,6 @@ class Site extends TerminusModel implements ConfigAwareInterface, ContainerAware
     }
 
     /**
-     * @return SiteMetrics
-     */
-    public function getSiteMetrics()
-    {
-        if (empty($this->site_metrics)) {
-            $this->site_metrics = $this->getContainer()->get(SiteMetrics::class, [['site' => $this,],]);
-        }
-        return $this->site_metrics;
-    }
-
-    /**
      * Returns whether the site is frozen or not.
      *
      * @return boolean
@@ -349,26 +370,22 @@ class Site extends TerminusModel implements ConfigAwareInterface, ContainerAware
     {
         $settings = $this->get('settings');
 
-        $date_format = $this->getConfig()->get('date_format');
-        $format_date = function ($attribute) use ($date_format) {
-            return date($date_format, is_numeric($date = $this->get($attribute)) ? $date : strtotime($date));
-        };
         $data = [
             'id' => $this->id,
             'name' => $this->get('name'),
             'label' => $this->get('label'),
-            'created' => $format_date('created'),
+            'created' => $this->get('created'),
             'framework' => $this->get('framework'),
             'organization' => $this->get('organization'),
-            'service_level' => $this->get('service_level'),
+            'plan_name' => $this->get('plan_name'),
             'max_num_cdes' => $settings ? $settings->max_num_cdes : 0,
             'upstream' => (string)$this->getUpstream(),
-            'php_version' => $this->getPHPVersion(),
             'holder_type' => $this->get('holder_type'),
             'holder_id' => $this->get('holder_id'),
             'owner' => $this->get('owner'),
-            'frozen' => $this->isFrozen() ? 'true' : 'false',
-            'last_frozen_at' => $format_date('last_frozen_at'),
+            'region' => $this->get('preferred_zone_label'),
+            'frozen' => $this->isFrozen(),
+            'last_frozen_at' => $this->get('last_frozen_at'),
         ];
         if (isset($this->tags)) {
             $data['tags'] = implode(',', $this->tags->ids());
@@ -404,6 +421,8 @@ class Site extends TerminusModel implements ConfigAwareInterface, ContainerAware
 
     /**
      * Update service level
+     *
+     * @deprecated 2.0.0 This is no longer the appropriate way to change a site's plan. Use $this->getPlans()->set().
      *
      * @param string $service_level Level to set service on site to
      * @return Workflow

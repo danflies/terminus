@@ -9,13 +9,13 @@ use GuzzleHttp\RequestOptions;
 use GuzzleHttp\Psr7\Request as HttpRequest;
 use League\Container\ContainerAwareInterface;
 use League\Container\ContainerAwareTrait;
+use Pantheon\Terminus\Config\ConfigAwareTrait;
 use Pantheon\Terminus\Exceptions\TerminusException;
 use Pantheon\Terminus\Helpers\LocalMachineHelper;
 use Pantheon\Terminus\Session\SessionAwareInterface;
 use Pantheon\Terminus\Session\SessionAwareTrait;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
-use Robo\Common\ConfigAwareTrait;
 use Robo\Contract\ConfigAwareInterface;
 
 /**
@@ -149,7 +149,7 @@ class Request implements ConfigAwareInterface, ContainerAwareInterface, LoggerAw
 
         $body = $debug_body = null;
         if (isset($options['form_params'])) {
-            $body = json_encode($options['form_params']);
+            $body = json_encode($options['form_params'], JSON_UNESCAPED_SLASHES);
             $debug_body = $options['form_params'];
         }
 
@@ -163,10 +163,10 @@ class Request implements ConfigAwareInterface, ContainerAwareInterface, LoggerAw
         $this->logger->debug(
             self::DEBUG_REQUEST_STRING,
             [
-                'headers' => json_encode($this->stripSensitiveInfo($headers)),
+                'headers' => json_encode($this->stripSensitiveInfo($headers), JSON_UNESCAPED_SLASHES),
                 'uri' => $uri,
                 'method' => $method,
-                'body' => json_encode($this->stripSensitiveInfo($debug_body)),
+                'body' => json_encode($this->stripSensitiveInfo($debug_body), JSON_UNESCAPED_SLASHES),
             ]
         );
 

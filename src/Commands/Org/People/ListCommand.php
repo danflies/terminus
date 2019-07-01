@@ -4,6 +4,7 @@ namespace Pantheon\Terminus\Commands\Org\People;
 
 use Consolidation\OutputFormatters\StructuredData\RowsOfFields;
 use Pantheon\Terminus\Commands\TerminusCommand;
+use Pantheon\Terminus\Commands\StructuredListTrait;
 
 /**
  * Class ListCommand
@@ -11,6 +12,8 @@ use Pantheon\Terminus\Commands\TerminusCommand;
  */
 class ListCommand extends TerminusCommand
 {
+    use StructuredListTrait;
+
     /**
      * Displays the list of users associated with an organization.
      *
@@ -34,10 +37,12 @@ class ListCommand extends TerminusCommand
     public function listPeople($organization)
     {
         $org = $this->session()->getUser()->getOrganizationMemberships()->get($organization)->getOrganization();
-        $members = $org->getUserMemberships()->serialize();
-        if (empty($members)) {
-            $this->log()->notice('{org} has no members.', ['org' => $org->getName(),]);
-        }
-        return new RowsOfFields($members);
+        return $this->getRowsOfFields(
+            $org->getUserMemberships(),
+            [
+                'message' => '{org} has no members.',
+                'message_options' => ['org' => $org->getName(),],
+            ]
+        );
     }
 }

@@ -3,6 +3,7 @@
 namespace Pantheon\Terminus\Commands\Site\Upstream;
 
 use Pantheon\Terminus\Commands\TerminusCommand;
+use Pantheon\Terminus\Commands\WorkflowProcessingTrait;
 use Pantheon\Terminus\Site\SiteAwareInterface;
 use Pantheon\Terminus\Site\SiteAwareTrait;
 
@@ -13,6 +14,7 @@ use Pantheon\Terminus\Site\SiteAwareTrait;
 class ClearCacheCommand extends TerminusCommand implements SiteAwareInterface
 {
     use SiteAwareTrait;
+    use WorkflowProcessingTrait;
 
     /**
      * Clears caches for the site's codeserver.
@@ -29,10 +31,7 @@ class ClearCacheCommand extends TerminusCommand implements SiteAwareInterface
     public function clearCache($site)
     {
         $site_obj = $this->sites->get($site);
-        $workflow = $site_obj->getUpstream()->clearCache();
-        while (!$workflow->checkProgress()) {
-            // @TODO: Add Symfony progress bar to indicate that something is happening.
-        }
+        $this->processWorkflow($site_obj->getUpstream()->clearCache());
         $this->log()->notice('Code cache cleared on {site}.', ['site' => $site_obj->get('name'),]);
     }
 }

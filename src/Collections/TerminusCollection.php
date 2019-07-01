@@ -132,13 +132,23 @@ abstract class TerminusCollection implements ContainerAwareInterface, RequestAwa
             }
         }
         $class_name = $this->collected_class;
-        $pretty_name = $class_name::$pretty_name;
+        $pretty_name = $class_name::PRETTY_NAME;
         $particle = in_array(substr($pretty_name, 0, 1), ['a', 'e', 'i', 'o', 'u',]) ? 'an' : 'a';
         throw new TerminusNotFoundException(
             "Could not find $particle {model} identified by {id}.",
             ['model' => $pretty_name, 'id' => $id,],
             1
         );
+    }
+
+    /**
+     * Returns the name of the model class this collection collects
+     *
+     * @return string
+     */
+    public function getCollectedClass()
+    {
+        return $this->collected_class;
     }
 
     /**
